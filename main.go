@@ -13,46 +13,26 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
-	"golang.org/x/sys/windows/svc"
 )
 
-var port = ":8080"          // TODO: make this configurable
-var assetPath = `C:\public` // TODO: make this configurable
+var port = ":8080"            // TODO: make this configurable
+var assetPath = `..\dist\src` // TODO: make this configurable
 
 var wg sync.WaitGroup
 var stopFlag = new(bool)
 
-type myService struct{}
-
-func (m *myService) Execute(_ []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
-	changes <- svc.Status{State: svc.StartPending}
-
-	go func() {
-		runAPI()
-	}()
-
-	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-	for c := range r {
-		switch c.Cmd {
-		case svc.Stop, svc.Shutdown:
-			*stopFlag = true
-			changes <- svc.Status{State: svc.StopPending}
-			return
-		default:
-			log.Println("Command not recognized:", c)
-		}
-	}
-	return
+func main() {
+	runAPI()
 }
 
 func webApp(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, assetPath+`\index.html`)
+	p := assetPath + `\index.html`
+	http.ServeFile(w, r, p)
 }
 
 func serveAsset(w http.ResponseWriter, r *http.Request) {
-	assetPath := assetPath + r.URL.Path
-	http.ServeFile(w, r, assetPath)
+	p := assetPath + r.URL.Path
+	http.ServeFile(w, r, p)
 }
 
 func runAPI() {
@@ -94,26 +74,4 @@ func runAPI() {
 
 	wg.Wait()
 	log.Println("Server exited")
-}
-
-func runService() {
-	handler := &myService{}
-	err := svc.Run("ETL API", handler)
-	if err != nil {
-		log.Fatalf("Service failed: %v", err)
-	}
-	log.Println("Service exited.")
-}
-
-func main() {
-	isWinServ, err := svc.IsWindowsService()
-	if err != nil {
-		log.Fatalf("failed to determine if we are running as a windows service: %v", err)
-	}
-
-	if isWinServ {
-		runService()
-		return
-	}
-	runAPI()
 }
