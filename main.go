@@ -1,6 +1,10 @@
 package main
 
 import (
+	"api/del"
+	"api/get"
+	"api/post"
+	"api/put"
 	"context"
 	"errors"
 	"log"
@@ -10,9 +14,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 )
 
 var port = ":8080"            // TODO: make this configurable
@@ -35,23 +36,41 @@ func serveAsset(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, p)
 }
 
+func apiHandler(w http.ResponseWriter, r *http.Request) {
+	if *stopFlag {
+		http.Error(w, "Server is shutting down", http.StatusServiceUnavailable)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		get.Handler(w, r)
+	case http.MethodPost:
+		post.Handler(w, r)
+	case http.MethodPut:
+		put.Handler(w, r)
+	case http.MethodDelete:
+		del.Handler(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 func runAPI() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 
-	r := mux.NewRouter()
-	r.HandleFunc("/", webApp)
-	r.HandleFunc("/assets/{rest:.*}", serveAsset)
-
-	handler := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
-		AllowedHeaders: []string{"*"},
-	}).Handler(r)
+	http.HandleFunc("/", webApp)
+	http.HandleFunc("/index.html", webApp)
+	http.HandleFunc("/home", webApp)
+	http.HandleFunc("/assets/{rest:.*}", serveAsset)
+	http.HandleFunc("/api/", apiHandler)
 
 	srv := &http.Server{
-		Handler: handler,
-		Addr:    port,
+		Addr:         port,
+		Handler:      nil,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
 	}
 
 	wg.Add(1)
