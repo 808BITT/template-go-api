@@ -6,7 +6,7 @@ import (
 
 func Handler(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
-	case "/api/health":
+	case "/api/v1/health":
 		health(w, r)
 	default:
 		http.Error(w, "Not found", http.StatusNotFound)
