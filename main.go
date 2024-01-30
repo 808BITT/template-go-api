@@ -23,7 +23,6 @@ var stopFlag = new(bool)
 
 func webApp(w http.ResponseWriter, r *http.Request) {
 	p := assetPath + r.URL.Path
-	log.Println("webApp: " + p)
 	if _, err := os.Stat(p); os.IsNotExist(err) {
 		http.ServeFile(w, r, assetPath+"/index.html")
 	} else {
